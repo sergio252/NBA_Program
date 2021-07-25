@@ -1,0 +1,100 @@
+# Python Code
+
+import pandas as pd
+
+
+# Load data file and take a quick view
+
+df = pd.read_csv("data.csv")
+df.head()
+
+
+### Part 1: Data Ingestion, Data Manipulation, and Data Export
+
+# Generate "Score_Margin" variable
+df["Score_Margin"] = abs(df["Home_Score"] - df["Away_Score"])
+
+# Save new dataset
+df.to_csv("new_data.csv", index=False)
+
+
+### Part 2: Data Manipulation and Analysis
+
+df = pd.read_csv("new_data.csv")
+
+# select season to analyze
+season = "2020-21"
+
+# Get final score margin of each game by getting the value of their last event (numerically sorted).
+df = df.sort_values(["Season", "Game", "Event_Num"])
+games_by_season = df.groupby(["Season", "Game"]).Score_Margin.last()
+
+# Generate descriptive statistics
+print(games_by_season[season].describe())
+
+'''
+count    1080.000000
+mean       11.870370
+std         8.940637
+min         0.000000
+25%         5.000000
+50%        10.000000
+75%        17.000000
+max        57.000000
+Name: Score_Margin, dtype: float64
+'''
+
+# Surprinsingly, the minimum value of the Score_Margin variable is 0 but games cannot finish even. 
+# Analyzing those games, we find that they include the final score in the Event_Num = 0
+
+print(games_by_season[games_by_season==0][season])
+'''
+Season   Game
+2020-21  29      0
+         90      0
+         513     0
+'''
+
+## Option 1: Replace Event_Num=0 for a value higher than any other event number. That way, when sorting events, they will be placed at the bottom. Then, apply the "groupby" described before.
+
+df.Event_Num.replace({0: df.Event_Num.max() + 1}, inplace=True)
+df = df.sort_values(["Season", "Game", "Event_Num"])
+games_by_season = df.groupby(["Season", "Game"]).Score_Margin.last()
+
+# select season to analyze
+season = "2020-21"
+
+# Get selected metrics of the corresponding season
+mean = games_by_season[season].mean()
+minimum = games_by_season[season].min()
+maximum = games_by_season[season].max()
+standard_dev = games_by_season[season].std()
+variance = standard_dev**2
+
+# Show results in a dataframe and export them into an excel file
+tableA = pd.DataFrame({"Mean": mean, "Minimum": minimum, "Maximum": maximum, "Standard Deviation": standard_dev, "Variance": variance}, index=[season]).T.round(3)
+tableA.to_excel("TableA.xlsx")
+print(tableA)
+
+
+## Option 2: For each game, select first the maximum points of the columns "Home_Score" and "Away_Score". USing them, calculate the final score margin. 
+
+alternative_df = df.groupby(["Season", "Game"]).agg({"Home_Score": "max", "Away_Score": "max"})
+alternative_df["Score_Margin"] = abs(alternative_df["Home_Score"] - alternative_df["Away_Score"])
+
+# select season to analyze
+season = "2020-21"
+
+points_diff = alternative_df[alternative_df.index.get_level_values(0) == season].Score_Margin
+
+# Get selected metrics of the corresponding season
+mean = points_diff.mean()
+minimum = points_diff.min()
+maximum = points_diff.max()
+standard_dev = points_diff.std()
+variance = standard_dev**2
+
+# Show results in a dataframe and export them into an excel file
+tableA = pd.DataFrame({"Mean": mean, "Minimum": minimum, "Maximum": maximum, "Standard Deviation": standard_dev, "Variance": variance}, index=[season]).T.round(3)
+tableA.to_excel("TableA.xlsx")
+print(tableA)
